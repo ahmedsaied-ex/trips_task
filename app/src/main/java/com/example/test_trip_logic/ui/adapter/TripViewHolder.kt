@@ -12,7 +12,9 @@ class TripViewHolder(
     fun bind(trip: TripModel) {
         binding.tvTripName.text = trip.name
         binding.tvTripDate.text = trip.time
-        binding.tvTripDestination.text = "lat: ${trip.lat}  lang : ${trip.lng}"
+        binding.tvTripLat.text = trip.lat.toString()
+        binding.tvTripLng.text = trip.lng.toString()
+
 
         binding.root.setOnClickListener {
             onItemClick(trip)
