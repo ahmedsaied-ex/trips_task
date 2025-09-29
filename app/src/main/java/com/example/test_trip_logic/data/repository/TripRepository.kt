@@ -21,7 +21,7 @@ class TripRepository(context: Context) {
             val seed = mutableListOf(
                 TripModel("1", "Alexandria", "10:00 AM", 31.2001, 29.9187),
                 TripModel("2", "Hurghada", "11:30 AM", 27.2579, 33.8116),
-                TripModel("3", "Luxor", "03:15 PM", 25.6872, 32.6396)
+                TripModel("3", "Luxor", "03:15 PM", 25.68, 32.71)
             )
             saveTrips(seed)
             seed
