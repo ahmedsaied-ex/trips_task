@@ -3,8 +3,8 @@ package com.example.test_trip_logic.ui.fragments
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.fragment.app.Fragment
-
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,11 +14,13 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.navArgs
+import com.example.test_trip_logic.MyOpject
 import com.example.test_trip_logic.R
 import com.example.test_trip_logic.data.repository.TripRepository
 import com.example.test_trip_logic.data.view_model.TripViewModel
 import com.example.test_trip_logic.data.view_model.TripViewModelFactory
-
+import com.example.test_trip_logic.databinding.FragmentMapsBinding
+import com.example.test_trip_logic.ui.MyBottomSheet
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -30,15 +32,18 @@ import kotlin.getValue
 
 class MapsFragment : Fragment(), OnMapReadyCallback {
 
+    private var _binding: FragmentMapsBinding? = null
+    private val binding get() = _binding!!
+
     private lateinit var googleMap: GoogleMap
 
-    private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-        isGranted: Boolean ->
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
                 enableUserLocationOnMap()
             } else {
                 Toast.makeText(requireContext(), "Location permission denied", Toast.LENGTH_LONG).show()
-
             }
         }
 
@@ -49,14 +54,22 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_maps, container, false)
+    ): View {
+        _binding = FragmentMapsBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val mapFragment = childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
+        val mapFragment =
+            childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
         mapFragment?.getMapAsync(this)
+
+        binding.fabToggleEdit.setOnClickListener {
+            val bottomSheet = MyBottomSheet()
+            bottomSheet.show(parentFragmentManager, bottomSheet.tag)
+
+        }
     }
 
     override fun onMapReady(map: GoogleMap) {
@@ -69,24 +82,30 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
         googleMap.setOnMapLongClickListener { latLng ->
 
-            googleMap.addMarker(MarkerOptions().position(latLng).title("New Marker"))
+            if (MyOpject.isAdjustable) {
+                googleMap.addMarker(MarkerOptions().position(latLng).title("New Marker"))
+                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 12f))
 
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,12f))
+                Toast.makeText(
+                    requireContext(),
+                    "New location: ${latLng.latitude}, ${latLng.longitude}",
+                    Toast.LENGTH_SHORT
+                ).show()
 
-            Toast.makeText(requireContext(), "New location: ${latLng.latitude}, ${latLng.longitude}", Toast.LENGTH_SHORT).show()
+                tripViewModel.updateTripLocation(
+                    id = args.trip.id,
+                    newLat = latLng.latitude,
+                    newLng = latLng.longitude
+                )
 
-            tripViewModel.updateTripLocation(
-                id = args.trip.id,
-                newLat = latLng.latitude,
-                newLng = latLng.longitude
-            )
-
+            } else {
+                Toast.makeText(requireContext(), "can't be edideted ", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     private fun checkLocationPermission() {
         when {
-            //1
             ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -94,21 +113,19 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
                 enableUserLocationOnMap()
             }
 
-            //2
             shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
                 MaterialAlertDialogBuilder(requireContext())
                     .setTitle("Location Permission Needed")
                     .setMessage("We need access to your location to show your current position on the map.")
-                    .setNegativeButton("Cancel") { dialog, which ->
+                    .setNegativeButton("Cancel") { dialog, _ ->
                         dialog.dismiss()
                     }
-                    .setPositiveButton("OK") { dialog, which ->
+                    .setPositiveButton("OK") { _, _ ->
                         requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                     }
                     .show()
             }
 
-            //3
             else -> {
                 requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
@@ -117,12 +134,18 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
 
     private fun enableUserLocationOnMap() {
         if (ActivityCompat.checkSelfPermission(
-                requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             googleMap.isMyLocationEnabled = true
         }
     }
 
-
+    override fun onDestroyView() {
+        Log.d("OnDestroyView", "onDestroyView: ")
+        MyOpject.isAdjustable=false
+        super.onDestroyView()
+        _binding = null
+    }
 }
